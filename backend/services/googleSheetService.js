@@ -1,13 +1,6 @@
 import { getSheetsClient } from '../config/googleClient.js';
-import { execAsync } from '../config/db.js';
-import {
-  truncateAssets,
-  createAsset,
-} from '../models/assetModel.js';
-import {
-  truncateLiabilities,
-  createLiability,
-} from '../models/liabilityModel.js';
+import { truncateAssets, createAsset } from '../models/assetModel.js';
+import { truncateLiabilities, createLiability } from '../models/liabilityModel.js';
 import { getNetWorthSummary } from './netWorthService.js';
 
 function extractSpreadsheetId(sheetUrl) {
@@ -67,14 +60,10 @@ export async function importFromGoogleSheet(userId, { sheetUrl, sheetName }) {
     const amountRaw = row[3];
     const notes = (row[4] || '').trim() || null;
 
-    if (!type || !name) {
-      continue;
-    }
+    if (!type || !name) continue;
 
     const amount = Number(amountRaw);
-    if (Number.isNaN(amount)) {
-      continue;
-    }
+    if (Number.isNaN(amount)) continue;
 
     if (type === 'asset') {
       assets.push({ userId, category, name, amount, notes, createdAt: nowIso });
@@ -89,30 +78,19 @@ export async function importFromGoogleSheet(userId, { sheetUrl, sheetName }) {
     throw error;
   }
 
-  await execAsync('BEGIN TRANSACTION');
-  try {
-    await truncateAssets(userId);
-    await truncateLiabilities(userId);
+  await truncateAssets(userId);
+  await truncateLiabilities(userId);
 
-    for (const asset of assets) {
-      await createAsset(asset);
-    }
-    for (const liability of liabilities) {
-      await createLiability(liability);
-    }
-
-    await execAsync('COMMIT');
-  } catch (err) {
-    await execAsync('ROLLBACK');
-    throw err;
+  for (const asset of assets) {
+    await createAsset(asset);
   }
-
-  const summary = await getNetWorthSummary(userId);
+  for (const liability of liabilities) {
+    await createLiability(liability);
+  }
 
   return {
     assetsImported: assets.length,
     liabilitiesImported: liabilities.length,
-    summary,
+    summary: await getNetWorthSummary(userId),
   };
 }
-

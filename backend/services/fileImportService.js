@@ -1,5 +1,4 @@
 import { parse } from 'csv-parse/sync';
-import { execAsync } from '../config/db.js';
 import { truncateAssets, createAsset } from '../models/assetModel.js';
 import { truncateLiabilities, createLiability } from '../models/liabilityModel.js';
 import { getNetWorthSummary } from './netWorthService.js';
@@ -29,21 +28,21 @@ export async function importFromCsvText(userId, csvText) {
   let records;
   try {
     records = parseCsvToRows(csvText);
-  } catch (e) {
+  } catch {
     const error = new Error('Invalid CSV format');
     error.status = 400;
     throw error;
   }
 
-  // Expected headers: Type, Category, Name, Amount, Notes (case-insensitive)
   const nowIso = new Date().toISOString();
   const assets = [];
   const liabilities = [];
 
   for (const rec of records) {
-    // tolerate header variants by normalizing keys
     const map = {};
-    for (const [k, v] of Object.entries(rec)) map[normalizeHeader(k)] = v;
+    for (const [k, v] of Object.entries(rec)) {
+      map[normalizeHeader(k)] = v;
+    }
 
     const type = String(map.type || '').trim().toLowerCase();
     const category = String(map.category || 'Uncategorized').trim();
@@ -67,19 +66,11 @@ export async function importFromCsvText(userId, csvText) {
     throw error;
   }
 
-  await execAsync('BEGIN TRANSACTION');
-  try {
-    await truncateAssets(userId);
-    await truncateLiabilities(userId);
+  await truncateAssets(userId);
+  await truncateLiabilities(userId);
 
-    for (const a of assets) await createAsset(a);
-    for (const l of liabilities) await createLiability(l);
-
-    await execAsync('COMMIT');
-  } catch (err) {
-    await execAsync('ROLLBACK');
-    throw err;
-  }
+  for (const a of assets) await createAsset(a);
+  for (const l of liabilities) await createLiability(l);
 
   return {
     assetsImported: assets.length,
@@ -87,4 +78,3 @@ export async function importFromCsvText(userId, csvText) {
     summary: await getNetWorthSummary(userId),
   };
 }
-
