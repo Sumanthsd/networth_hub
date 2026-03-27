@@ -28,3 +28,31 @@ function getTransporter() {
     family: 4,
   });
 }
+
+export async function sendSignupOtpEmail({ email, name, otp }) {
+  const transporter = getTransporter();
+  const from = process.env.MAIL_FROM || process.env.SMTP_USER;
+  const greeting = name ? `Hi ${name},` : 'Hi,';
+  const subject = 'Verify your NetWorth Hub account';
+  const text = `${greeting}
+
+Your NetWorth Hub verification code is ${otp}.
+
+This code expires in 10 minutes.`;
+
+  if (!transporter || !from) {
+    console.warn(
+      `OTP delivery is not configured. Verification code for ${email}: ${otp}`
+    );
+    return { delivered: false };
+  }
+
+  await transporter.sendMail({
+    from,
+    to: email,
+    subject,
+    text,
+  });
+
+  return { delivered: true };
+}
