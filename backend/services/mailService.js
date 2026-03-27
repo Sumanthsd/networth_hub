@@ -1,4 +1,7 @@
 import nodemailer from 'nodemailer';
+import dns from 'node:dns';
+
+dns.setDefaultResultOrder('ipv4first');
 
 function isTruthy(value) {
   return ['1', 'true', 'yes'].includes(String(value || '').toLowerCase());
@@ -22,33 +25,6 @@ function getTransporter() {
       user,
       pass,
     },
+    family: 4,
   });
-}
-
-export async function sendSignupOtpEmail({ email, name, otp }) {
-  const transporter = getTransporter();
-  const from = process.env.MAIL_FROM || process.env.SMTP_USER;
-  const greeting = name ? `Hi ${name},` : 'Hi,';
-  const subject = 'Verify your Net Worth account';
-  const text = `${greeting}
-
-Your Net Worth verification code is ${otp}.
-
-This code expires in 10 minutes.`;
-
-  if (!transporter || !from) {
-    console.warn(
-      `OTP delivery is not configured. Verification code for ${email}: ${otp}`
-    );
-    return { delivered: false };
-  }
-
-  await transporter.sendMail({
-    from,
-    to: email,
-    subject,
-    text,
-  });
-
-  return { delivered: true };
 }
