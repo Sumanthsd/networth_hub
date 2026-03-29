@@ -24,13 +24,8 @@ Environment variables to set on Render:
 
 - `DATABASE_URL=/opt/render/project/src/data/networth.db`
 - `CORS_ORIGIN=https://your-frontend-domain.vercel.app`
-- `JWT_SECRET=your-long-random-secret`
-- `SMTP_HOST=smtp.gmail.com`
-- `SMTP_PORT=587`
-- `SMTP_SECURE=false`
-- `SMTP_USER=your-email@gmail.com`
-- `SMTP_PASS=your-google-app-password`
-- `MAIL_FROM=NetWorth Hub <your-email@gmail.com>`
+- `CLERK_SECRET_KEY=sk_live_...`
+- `CLERK_PUBLISHABLE_KEY=pk_live_...`
 - `GOOGLE_CLIENT_EMAIL=...`
 - `GOOGLE_PRIVATE_KEY=...`
 - `GOOGLE_SHEETS_SCOPES=https://www.googleapis.com/auth/spreadsheets.readonly`

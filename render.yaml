@@ -12,19 +12,9 @@ services:
         value: /opt/render/project/src/data/networth.db
       - key: CORS_ORIGIN
         sync: false
-      - key: JWT_SECRET
+      - key: CLERK_SECRET_KEY
         sync: false
-      - key: SMTP_HOST
-        sync: false
-      - key: SMTP_PORT
-        sync: false
-      - key: SMTP_SECURE
-        sync: false
-      - key: SMTP_USER
-        sync: false
-      - key: SMTP_PASS
-        sync: false
-      - key: MAIL_FROM
+      - key: CLERK_PUBLISHABLE_KEY
         sync: false
       - key: GOOGLE_CLIENT_EMAIL
         sync: false

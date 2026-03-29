@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { UserButton } from '@clerk/clerk-react';
 import SummaryCards from '../components/Dashboard/SummaryCards.jsx';
 import ImportSheetForm from '../components/Dashboard/ImportSheetForm.jsx';
 import AssetsTable from '../components/Dashboard/AssetsTable.jsx';
@@ -21,12 +22,12 @@ import {
   getSummary,
   getAssetAllocation,
 } from '../services/netWorthService.js';
+import { updateProfile } from '../services/authService.js';
 import {
   importFromGoogleSheet,
   importFromCsvFile,
   importSampleData,
 } from '../services/importService.js';
-import { changePassword, updateProfile } from '../services/authService.js';
 import { openImageReport, openPrintableReport } from '../utils/pdfExport.js';
 
 function formatCurrency(value) {
@@ -37,33 +38,35 @@ function formatCurrency(value) {
   });
 }
 
-function buildDraft(user) {
-  return {
-    name: user?.name || '',
-    email: user?.email || '',
-    mobile: user?.mobile || '',
-    dob: user?.dob || '',
-    gender: user?.gender || '',
-    profilePic: user?.profilePic || '',
-  };
+function DetailsIcon() {
+  return (
+    <span className="clerk-custom-page-icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24" focusable="false">
+        <path d="M8 6.75A1.25 1.25 0 1 1 8 9.25A1.25 1.25 0 0 1 8 6.75Z" />
+        <path d="M8 10.75A1.25 1.25 0 1 1 8 13.25A1.25 1.25 0 0 1 8 10.75Z" />
+        <path d="M8 14.75A1.25 1.25 0 1 1 8 17.25A1.25 1.25 0 0 1 8 14.75Z" />
+        <path d="M11.5 8H16.75" />
+        <path d="M11.5 12H16.75" />
+        <path d="M11.5 16H16.75" />
+      </svg>
+    </span>
+  );
 }
 
-export default function DashboardPage({ user, onUserChange, onLogout }) {
+export default function DashboardPage({ user, onUserChange }) {
   const [assets, setAssets] = useState([]);
   const [liabilities, setLiabilities] = useState([]);
   const [summary, setSummary] = useState(null);
   const [allocation, setAllocation] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [activeScreen, setActiveScreen] = useState('dashboard');
-  const [profileDraft, setProfileDraft] = useState(buildDraft(user));
-  const [editableFields, setEditableFields] = useState({});
-  const [profileError, setProfileError] = useState('');
-  const [passwordError, setPasswordError] = useState('');
+  const [profileForm, setProfileForm] = useState({
+    mobile: user.mobile || '',
+    dob: user.dob || '',
+    gender: user.gender || '',
+  });
   const [profileSaving, setProfileSaving] = useState(false);
-  const [passwordSaving, setPasswordSaving] = useState(false);
-  const menuRef = useRef(null);
+  const [profileMessage, setProfileMessage] = useState('');
   const allocationRef = useRef(null);
   const snapshotRef = useRef(null);
 
@@ -74,23 +77,6 @@ export default function DashboardPage({ user, onUserChange, onLogout }) {
     (summary?.totalLiabilities || 0) !== 0 ||
     (summary?.netWorth || 0) !== 0;
   const hasAllocationData = allocation.length > 0;
-
-  useEffect(() => {
-    setProfileDraft(buildDraft(user));
-  }, [user]);
-
-  useEffect(() => {
-    function handlePointerDown(event) {
-      if (menuRef.current && !menuRef.current.contains(event.target)) {
-        setMenuOpen(false);
-      }
-    }
-
-    document.addEventListener('mousedown', handlePointerDown);
-    return () => {
-      document.removeEventListener('mousedown', handlePointerDown);
-    };
-  }, []);
 
   async function loadAll() {
     try {
@@ -117,6 +103,14 @@ export default function DashboardPage({ user, onUserChange, onLogout }) {
   useEffect(() => {
     loadAll();
   }, []);
+
+  useEffect(() => {
+    setProfileForm({
+      mobile: user.mobile || '',
+      dob: user.dob || '',
+      gender: user.gender || '',
+    });
+  }, [user]);
 
   async function handleImport(payload) {
     const result = await importFromGoogleSheet(payload);
@@ -166,74 +160,19 @@ export default function DashboardPage({ user, onUserChange, onLogout }) {
     await loadAll();
   }
 
-  function openProfileScreen() {
-    setProfileDraft(buildDraft(user));
-    setEditableFields({});
-    setProfileError('');
-    setActiveScreen('profile');
-    setMenuOpen(false);
-  }
-
-  function openPasswordScreen() {
-    setPasswordError('');
-    setActiveScreen('password');
-    setMenuOpen(false);
-  }
-
-  function handleProfileFieldChange(field, value) {
-    setProfileDraft((current) => ({ ...current, [field]: value }));
-  }
-
-  function handleProfileImageChange(event) {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      handleProfileFieldChange('profilePic', String(reader.result || ''));
-    };
-    reader.readAsDataURL(file);
-  }
-
-  async function handleProfileSave() {
-    setProfileSaving(true);
-    setProfileError('');
-
+  async function handleProfileSave(event) {
+    event.preventDefault();
     try {
-      const result = await updateProfile(profileDraft);
-      onUserChange(result.user);
-      setEditableFields({});
-      setActiveScreen('dashboard');
+      setProfileSaving(true);
+      setProfileMessage('');
+
+      const response = await updateProfile(profileForm);
+      onUserChange(response.user);
+      setProfileMessage('Profile details saved.');
     } catch (err) {
-      setProfileError(err.message);
+      setProfileMessage(err?.message || 'Failed to save profile details.');
     } finally {
       setProfileSaving(false);
-    }
-  }
-
-  async function handlePasswordSubmit(event) {
-    event.preventDefault();
-    const formData = new FormData(event.currentTarget);
-    const newPassword = String(formData.get('newPassword') || '');
-    const confirmPassword = String(formData.get('confirmPassword') || '');
-
-    if (newPassword !== confirmPassword) {
-      setPasswordError('New password and confirm password must match.');
-      return;
-    }
-
-    setPasswordSaving(true);
-    setPasswordError('');
-    try {
-      await changePassword({
-        currentPassword: formData.get('currentPassword'),
-        newPassword,
-      });
-      setActiveScreen('dashboard');
-    } catch (err) {
-      setPasswordError(err.message);
-    } finally {
-      setPasswordSaving(false);
     }
   }
 
@@ -291,175 +230,105 @@ export default function DashboardPage({ user, onUserChange, onLogout }) {
     ]);
   }
 
-  function renderProfileField(label, field, options = {}) {
-    const isEditing = Boolean(editableFields[field]);
-    const value = profileDraft[field];
-
+  function renderProfileDetailsPage() {
     return (
-      <div className="profile-row" key={field}>
-        <div>
-          <div className="profile-label">{label}</div>
-          {!isEditing && (
-            <div className="profile-value">
-              {value || options.emptyLabel || 'Not added yet'}
-            </div>
-          )}
-          {isEditing && options.type === 'select' && (
-            <select
-              className="input profile-input"
-              value={value}
-              onChange={(event) => handleProfileFieldChange(field, event.target.value)}
-            >
-              <option value="">Select</option>
-              <option value="Female">Female</option>
-              <option value="Male">Male</option>
-              <option value="Other">Other</option>
-              <option value="Prefer not to say">Prefer not to say</option>
-            </select>
-          )}
-          {isEditing && options.type !== 'select' && (
+      <form className="profile-panel" onSubmit={handleProfileSave}>
+        <div className="profile-panel-copy">
+          <div className="profile-panel-title">Additional profile details</div>
+          <div className="card-sub">
+            Add optional details for your NetWorth Hub profile. Your email and account security remain managed by Clerk.
+          </div>
+        </div>
+        <div className="profile-grid">
+          <label className="label profile-field">
+            <span>Mobile</span>
             <input
               className="input profile-input"
-              type={options.type || 'text'}
-              value={value}
-              required={Boolean(options.required)}
-              onChange={(event) => handleProfileFieldChange(field, event.target.value)}
+              placeholder="Optional mobile number"
+              type="tel"
+              value={profileForm.mobile}
+              onChange={(event) =>
+                setProfileForm((current) => ({
+                  ...current,
+                  mobile: event.target.value,
+                }))
+              }
             />
-          )}
-        </div>
-        <button
-          className="btn btn-outline"
-          type="button"
-          onClick={() =>
-            setEditableFields((current) => ({
-              ...current,
-              [field]: !current[field],
-            }))
-          }
-        >
-          {isEditing ? 'Done' : 'Edit'}
-        </button>
-      </div>
-    );
-  }
+          </label>
 
-  function renderProfileScreen() {
-    return (
-      <section className="dashboard-tile profile-screen">
-        <div className="tile-header">
-          <div>
-            <div className="tile-title">Profile</div>
-            <div className="card-sub">
-              Review your details first, then edit only the fields you want to change.
-            </div>
-          </div>
-          <button className="btn btn-outline" type="button" onClick={() => setActiveScreen('dashboard')}>
-            Back to Dashboard
+          <label className="label profile-field">
+            <span>Date of Birth</span>
+            <input
+              className="input profile-input"
+              type="date"
+              value={profileForm.dob}
+              onChange={(event) =>
+                setProfileForm((current) => ({
+                  ...current,
+                  dob: event.target.value,
+                }))
+              }
+            />
+          </label>
+
+          <label className="label profile-field">
+            <span>Gender</span>
+            <select
+              className="select profile-input"
+              value={profileForm.gender}
+              onChange={(event) =>
+                setProfileForm((current) => ({
+                  ...current,
+                  gender: event.target.value,
+                }))
+              }
+            >
+              <option value="">Prefer not to say</option>
+              <option value="Female">Female</option>
+              <option value="Male">Male</option>
+              <option value="Non-binary">Non-binary</option>
+              <option value="Other">Other</option>
+            </select>
+          </label>
+        </div>
+        <div className="profile-actions">
+          <button className="btn btn-primary" disabled={profileSaving} type="submit">
+            {profileSaving ? 'Saving...' : 'Save Details'}
           </button>
+          {profileMessage && <div className="card-sub profile-message">{profileMessage}</div>}
         </div>
-
-        <div className="profile-layout">
-          <div className="profile-card-main">
-            <div className="profile-photo-section">
-              {profileDraft.profilePic ? (
-                <img
-                  alt={user.name}
-                  className="profile-photo"
-                  src={profileDraft.profilePic}
-                />
-              ) : (
-                <div className="profile-photo profile-photo-fallback">
-                  {user.name?.charAt(0) || 'U'}
-                </div>
-              )}
-              <div className="profile-photo-actions">
-                <label className="btn btn-outline" htmlFor="profile-photo-upload">
-                  {profileDraft.profilePic ? 'Change Picture' : 'Upload Picture'}
-                </label>
-                <input
-                  id="profile-photo-upload"
-                  type="file"
-                  accept="image/*"
-                  hidden
-                  onChange={handleProfileImageChange}
-                />
-              </div>
-            </div>
-
-            <div className="profile-fields">
-              {renderProfileField('Name', 'name', { required: true })}
-              {renderProfileField('Email', 'email', { type: 'email', required: true })}
-              {renderProfileField('Mobile Number', 'mobile')}
-              {renderProfileField('Date of Birth', 'dob', { type: 'date' })}
-              {renderProfileField('Gender', 'gender', { type: 'select' })}
-            </div>
-
-            {profileError && <div className="error">{profileError}</div>}
-
-            <div className="profile-actions">
-              <button
-                className="btn btn-primary"
-                type="button"
-                onClick={handleProfileSave}
-                disabled={profileSaving}
-              >
-                {profileSaving ? 'Saving...' : 'Save Profile'}
-              </button>
-            </div>
-          </div>
-        </div>
-      </section>
-    );
-  }
-
-  function renderPasswordScreen() {
-    return (
-      <section className="dashboard-tile profile-screen">
-        <div className="tile-header">
-          <div>
-            <div className="tile-title">Change Password</div>
-            <div className="card-sub">
-              Update your password from a dedicated account screen.
-            </div>
-          </div>
-          <button className="btn btn-outline" type="button" onClick={() => setActiveScreen('dashboard')}>
-            Back to Dashboard
-          </button>
-        </div>
-
-        <div className="profile-card-main">
-          <form className="form-grid password-screen-form" onSubmit={handlePasswordSubmit}>
-            <div>
-              <label className="label">Current password</label>
-              <input className="input" name="currentPassword" type="password" required />
-            </div>
-            <div>
-              <label className="label">New password</label>
-              <input className="input" name="newPassword" type="password" minLength="8" required />
-            </div>
-            <div>
-              <label className="label">Confirm new password</label>
-              <input
-                className="input"
-                name="confirmPassword"
-                type="password"
-                minLength="8"
-                required
-              />
-            </div>
-            {passwordError && <div className="error">{passwordError}</div>}
-            <button className="btn btn-primary" type="submit" disabled={passwordSaving}>
-              {passwordSaving ? 'Updating...' : 'Update Password'}
-            </button>
-          </form>
-        </div>
-      </section>
+      </form>
     );
   }
 
   function renderDashboard() {
     return (
       <>
+        <section className="dashboard-hero">
+          <div className="dashboard-hero-copy">
+            <div className="hero-kicker">Financial command center</div>
+            <h1>{`Welcome back, ${user.name?.split(' ')[0] || 'there'}.`}</h1>
+            <p>
+              Track assets, liabilities, imports, and net worth from one calm workspace with
+              faster account handling through Clerk.
+            </p>
+            <div className="hero-inline-stats">
+              <div className="hero-stat">
+                <span className="hero-stat-label">Net worth</span>
+                <span className="hero-stat-value">{formatCurrency(summary?.netWorth)}</span>
+              </div>
+              <div className="hero-stat">
+                <span className="hero-stat-label">Assets</span>
+                <span className="hero-stat-value">{assets.length}</span>
+              </div>
+              <div className="hero-stat">
+                <span className="hero-stat-label">Liabilities</span>
+                <span className="hero-stat-value">{liabilities.length}</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
         <section className="dashboard-tile">
           <div className="tile-header">
             <div>
@@ -567,62 +436,56 @@ export default function DashboardPage({ user, onUserChange, onLogout }) {
         <div className="top-nav">
           <div className="brand-mark">
             <span className="brand-icon">N</span>
-            <span className="brand-name">NetWorth Hub</span>
+            <div>
+              <div className="brand-name">NetWorth Hub</div>
+              <div className="brand-subtitle">Personal net worth cockpit</div>
+            </div>
           </div>
-          <div className="profile-menu-wrap" ref={menuRef}>
-            <button
-              className="profile-trigger"
-              type="button"
-              onClick={() => setMenuOpen((value) => !value)}
-            >
-              {user.profilePic ? (
-                <img className="avatar-image" alt={user.name} src={user.profilePic} />
-              ) : (
-                <div className="avatar-circle">{user.name?.charAt(0) || 'U'}</div>
-              )}
-              <span className="profile-trigger-name">{user.name}</span>
-            </button>
-            {menuOpen && (
-              <div className="profile-dropdown">
-                <div className="profile-dropdown-head">
-                  <div className="profile-dropdown-title">{user.name}</div>
-                  <div className="profile-dropdown-email">{user.email}</div>
-                </div>
-                <button className="profile-dropdown-item" type="button" onClick={openProfileScreen}>
-                  Profile
-                </button>
-                <button className="profile-dropdown-item" type="button" onClick={openPasswordScreen}>
-                  Change Password
-                </button>
-                <button className="profile-dropdown-item danger" type="button" onClick={onLogout}>
-                  Logout
-                </button>
-              </div>
-            )}
+          <div className="account-shell">
+            <div className="clerk-button-wrap">
+              <UserButton
+                userProfileMode="modal"
+                appearance={{
+                  elements: {
+                    avatarBox: 'clerk-avatar-box',
+                  },
+                }}
+                userProfileProps={{
+                  apiKeysProps: {
+                    hide: true,
+                  },
+                  appearance: {
+                    elements: {
+                      modalContent: 'clerk-profile-modal',
+                      cardBox: 'clerk-profile-card',
+                      navbar: 'clerk-profile-navbar',
+                      pageScrollBox: 'clerk-profile-scroll',
+                    },
+                  },
+                }}
+              >
+                <UserButton.UserProfilePage
+                  label="Additional details"
+                  labelIcon={<DetailsIcon />}
+                  url="additional-details"
+                >
+                  {renderProfileDetailsPage()}
+                </UserButton.UserProfilePage>
+              </UserButton>
+            </div>
           </div>
         </div>
         <div className="flex justify-between items-center gap-sm auth-header-stack">
           <div>
-            <div className="app-header-title">
-              {activeScreen === 'dashboard' && 'Welcome to your NetWorth Hub'}
-              {activeScreen === 'profile' && 'Manage Your Profile'}
-              {activeScreen === 'password' && 'Update Your Password'}
-            </div>
+            <div className="app-header-title">A sharper view of your money</div>
             <div className="muted" style={{ fontSize: '0.85rem', marginTop: '0.25rem' }}>
-              {activeScreen === 'dashboard' &&
-                'Build financial discipline by tracking your assets, liabilities, and net worth regularly.'}
-              {activeScreen === 'profile' &&
-                'Keep your account details up to date and personalize how your profile looks.'}
-              {activeScreen === 'password' &&
-                'Use a strong password and update it whenever you need to improve account security.'}
+              Bring together balances, obligations, imports, and snapshots in one polished workspace.
             </div>
           </div>
         </div>
       </header>
       <main className="app-main">
-        {activeScreen === 'dashboard' && renderDashboard()}
-        {activeScreen === 'profile' && renderProfileScreen()}
-        {activeScreen === 'password' && renderPasswordScreen()}
+        {renderDashboard()}
         {error && <div className="error mt-md">{error}</div>}
       </main>
     </div>

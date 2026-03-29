@@ -1,25 +1,17 @@
 import axios from 'axios';
 
-export const AUTH_TOKEN_KEY = 'networth-auth-token';
+let authTokenProvider = null;
 
-export function getStoredToken() {
-  return localStorage.getItem(AUTH_TOKEN_KEY);
-}
-
-export function setStoredToken(token) {
-  if (token) {
-    localStorage.setItem(AUTH_TOKEN_KEY, token);
-  } else {
-    localStorage.removeItem(AUTH_TOKEN_KEY);
-  }
+export function setAuthTokenProvider(provider) {
+  authTokenProvider = provider;
 }
 
 const apiClient = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000',
 });
 
-apiClient.interceptors.request.use((config) => {
-  const token = getStoredToken();
+apiClient.interceptors.request.use(async (config) => {
+  const token = authTokenProvider ? await authTokenProvider() : null;
   if (token) {
     config.headers = config.headers || {};
     config.headers.Authorization = `Bearer ${token}`;

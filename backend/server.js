@@ -1,18 +1,34 @@
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
+import { clerkMiddleware } from '@clerk/express';
 import { initDb } from './config/schemaInit.js';
 import apiRouter from './routes/index.js';
 import { errorHandler } from './middleware/errorHandler.js';
 
-dotenv.config();
-
 const app = express();
 const PORT = process.env.PORT || 4000;
+const missingEnv = [];
+if (!process.env.DATABASE_URL) {
+  missingEnv.push('DATABASE_URL');
+}
+if (!process.env.CLERK_SECRET_KEY) {
+  missingEnv.push('CLERK_SECRET_KEY');
+}
+if (!process.env.CLERK_PUBLISHABLE_KEY) {
+  missingEnv.push('CLERK_PUBLISHABLE_KEY');
+}
 const allowedOrigins = (process.env.CORS_ORIGIN || '')
   .split(',')
   .map((origin) => origin.trim())
   .filter(Boolean);
+
+if (missingEnv.length > 0) {
+  throw new Error(
+    `Missing required environment variables: ${missingEnv.join(', ')}. ` +
+      'Update backend/.env before starting the API.'
+  );
+}
 
 app.use(
   cors({
@@ -27,9 +43,23 @@ app.use(
   })
 );
 app.use(express.json());
+app.use(
+  clerkMiddleware({
+    secretKey: process.env.CLERK_SECRET_KEY,
+    publishableKey: process.env.CLERK_PUBLISHABLE_KEY,
+    authorizedParties: allowedOrigins,
+  })
+);
 
-// Initialize database schema
-await initDb();
+try {
+  await initDb();
+} catch (error) {
+  console.error('Failed to initialize the database.');
+  console.error(
+    'Check that backend/.env has a valid Postgres DATABASE_URL and that the database is reachable.'
+  );
+  throw error;
+}
 
 app.get('/health', (req, res) => {
   res.json({ ok: true });

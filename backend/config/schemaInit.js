@@ -7,20 +7,12 @@ export async function initDb() {
       name TEXT NOT NULL,
       email TEXT NOT NULL UNIQUE,
       password_hash TEXT NOT NULL,
+      clerk_user_id TEXT,
       mobile TEXT,
       dob TEXT,
       gender TEXT,
       profile_pic TEXT,
       is_verified INTEGER NOT NULL DEFAULT 0,
-      created_at TEXT NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS email_otps (
-      id SERIAL PRIMARY KEY,
-      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      otp_hash TEXT NOT NULL,
-      purpose TEXT NOT NULL,
-      expires_at TEXT NOT NULL,
       created_at TEXT NOT NULL
     );
 
@@ -46,6 +38,16 @@ export async function initDb() {
 
     CREATE INDEX IF NOT EXISTS idx_assets_user_id ON assets(user_id);
     CREATE INDEX IF NOT EXISTS idx_liabilities_user_id ON liabilities(user_id);
-    CREATE INDEX IF NOT EXISTS idx_email_otps_user_purpose ON email_otps(user_id, purpose);
+  `);
+
+  await execAsync(`
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS clerk_user_id TEXT;
+  `);
+
+  await execAsync(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_users_clerk_user_id
+    ON users(clerk_user_id)
+    WHERE clerk_user_id IS NOT NULL;
   `);
 }

@@ -103,14 +103,7 @@ Create a `.env` file inside `backend/`:
 PORT=4000
 DATABASE_URL=./data/networth.db
 CORS_ORIGIN=http://localhost:5173
-JWT_SECRET=your-long-random-secret
-
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_SECURE=false
-SMTP_USER=your-email@gmail.com
-SMTP_PASS=your-app-password
-MAIL_FROM=NetWorth Hub <your-email@gmail.com>
+CLERK_SECRET_KEY=sk_test_...
 
 GOOGLE_CLIENT_EMAIL=your-service-account-email
 GOOGLE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nYOUR_KEY\n-----END PRIVATE KEY-----\n"
@@ -121,6 +114,7 @@ Create a `.env` file inside `frontend/`:
 
 ```env
 VITE_API_BASE_URL=http://localhost:4000
+VITE_CLERK_PUBLISHABLE_KEY=pk_test_...
 ```
 
 ### 4. Start the backend
@@ -157,17 +151,12 @@ Liability,Loan,Car Loan,250000,Monthly EMI
 
 ### Public routes
 
-- `POST /api/auth/register`
-- `POST /api/auth/verify-otp`
-- `POST /api/auth/resend-otp`
-- `POST /api/auth/login`
 - `GET /health`
 
 ### Protected routes
 
 - `GET /api/auth/me`
 - `PUT /api/auth/profile`
-- `POST /api/auth/change-password`
 - `GET /api/assets`
 - `POST /api/assets`
 - `PUT /api/assets/:id`
@@ -198,9 +187,9 @@ See [DEPLOYMENT.md](./DEPLOYMENT.md) for step-by-step deployment details.
 
 - The backend creates the SQLite schema automatically on startup.
 - CORS is controlled through the `CORS_ORIGIN` environment variable.
-- The frontend stores the auth token in browser local storage.
+- Clerk provides the session token, and the frontend attaches it to API requests.
 - Google Sheets import requires service account credentials.
-- Email OTP requires a working SMTP configuration.
+- Email OTP and verification are handled by Clerk.
 
 ## Scripts
 

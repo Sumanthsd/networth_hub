@@ -15,7 +15,7 @@ export default function SummaryCards({ summary }) {
 
   return (
     <div className="grid grid-2">
-      <div className="card">
+      <div className="card card-emphasis">
         <div className="card-header">
           <div>
             <div className="card-title">Net Worth</div>
@@ -32,7 +32,7 @@ export default function SummaryCards({ summary }) {
         </div>
       </div>
 
-      <div className="card grid grid-2">
+      <div className="card card-split grid grid-2">
         <div>
           <div className="card-title">Total Assets</div>
           <div className="card-value tag-positive">

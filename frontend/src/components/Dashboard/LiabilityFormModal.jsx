@@ -1,3 +1,5 @@
+import { createPortal } from 'react-dom';
+
 export default function LiabilityFormModal({
   mode,
   initialValues,
@@ -18,7 +20,7 @@ export default function LiabilityFormModal({
     await onSubmit(payload);
   }
 
-  return (
+  return createPortal(
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
@@ -82,7 +84,8 @@ export default function LiabilityFormModal({
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 

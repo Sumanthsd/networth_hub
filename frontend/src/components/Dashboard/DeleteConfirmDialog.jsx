@@ -1,9 +1,11 @@
+import { createPortal } from 'react-dom';
+
 export default function DeleteConfirmDialog({ label, onConfirm, onCancel }) {
   async function handleConfirm() {
     await onConfirm();
   }
 
-  return (
+  return createPortal(
     <div className="modal-backdrop" onClick={onCancel}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
@@ -26,7 +28,8 @@ export default function DeleteConfirmDialog({ label, onConfirm, onCancel }) {
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 

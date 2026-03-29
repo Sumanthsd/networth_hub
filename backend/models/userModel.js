@@ -4,6 +4,10 @@ export function getUserByEmail(email) {
   return getAsync('SELECT * FROM users WHERE email = $1', [email]);
 }
 
+export function getUserByClerkUserId(clerkUserId) {
+  return getAsync('SELECT * FROM users WHERE clerk_user_id = $1', [clerkUserId]);
+}
+
 export function getUserById(id) {
   return getAsync('SELECT * FROM users WHERE id = $1', [id]);
 }
@@ -12,6 +16,7 @@ export async function createUser({
   name,
   email,
   passwordHash,
+  clerkUserId = null,
   mobile = null,
   dob = null,
   gender = null,
@@ -21,10 +26,21 @@ export async function createUser({
 }) {
   return getAsync(
     `INSERT INTO users
-      (name, email, password_hash, mobile, dob, gender, profile_pic, is_verified, created_at)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+      (name, email, password_hash, clerk_user_id, mobile, dob, gender, profile_pic, is_verified, created_at)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
      RETURNING *`,
-    [name, email, passwordHash, mobile, dob, gender, profilePic, isVerified, createdAt]
+    [
+      name,
+      email,
+      passwordHash,
+      clerkUserId,
+      mobile,
+      dob,
+      gender,
+      profilePic,
+      isVerified,
+      createdAt,
+    ]
   );
 }
 
@@ -47,14 +63,14 @@ export async function markUserVerified(id) {
 
 export async function updateUserProfile(
   id,
-  { name, email, mobile, dob, gender, profilePic }
+  { mobile, dob, gender, profilePic }
 ) {
   return getAsync(
     `UPDATE users
-     SET name = $1, email = $2, mobile = $3, dob = $4, gender = $5, profile_pic = $6
-     WHERE id = $7
+     SET mobile = $1, dob = $2, gender = $3, profile_pic = $4
+     WHERE id = $5
      RETURNING *`,
-    [name, email, mobile, dob, gender, profilePic, id]
+    [mobile, dob, gender, profilePic, id]
   );
 }
 
@@ -62,5 +78,22 @@ export async function updateUserPassword(id, passwordHash) {
   return getAsync(
     'UPDATE users SET password_hash = $1 WHERE id = $2 RETURNING *',
     [passwordHash, id]
+  );
+}
+
+export async function syncClerkIdentity(
+  id,
+  { clerkUserId, name, email, isVerified, profilePic }
+) {
+  return getAsync(
+    `UPDATE users
+     SET clerk_user_id = $1,
+         name = $2,
+         email = $3,
+         is_verified = $4,
+         profile_pic = COALESCE(profile_pic, $5)
+     WHERE id = $6
+     RETURNING *`,
+    [clerkUserId, name, email, isVerified, profilePic, id]
   );
 }
